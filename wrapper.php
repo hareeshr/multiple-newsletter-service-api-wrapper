@@ -313,6 +313,22 @@ class Newsletter_Wrapper {
 				}
 				echo json_encode($l);
 				break;
+			case 'mp':
+				$l = array();
+				if( MAILPOET_VERSION !== null){
+					$mp = new MailPoet\API\MP\v1\API;
+					$t = $mp::getLists();
+					if(count($t) > 0){
+						foreach ($t as $v) {
+							array_push($l, array(
+								'id' => $v['id'],
+								'name' => $v['name']
+							));
+						}
+					}
+				}
+				echo json_encode($l);
+				break;
 			case 'sg':
 				$t = $this->wrap->getLists()['lists'];
 				$l = array();
@@ -1216,6 +1232,58 @@ class Newsletter_Wrapper {
 				);
 				echo json_encode($l);
 				break;
+			case 'mp':
+				$l = array(
+					array(
+						'id'=>'email',
+						'name'=>'email',
+						'label'=>'Email Address',
+						'type'=>'text',
+						'format'=>'email',
+						'req'=>1,
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'fname',
+						'name'=>'First Name',
+						'label'=>'First Name',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'lname',
+						'name'=>'Last Name',
+						'label'=>'Last Name',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef'
+					)
+				);
+				if( MAILPOET_VERSION !== null){
+					$mp_cf = new MailPoet\Models\CustomField;
+				    $col = $mp_cf::orderByAsc('created_at')->findMany();
+				    $t = array_map(function($custom_field) {
+				      return $custom_field->asArray();
+				    }, $col);
+					if(count($t) > 0){
+						foreach ($t as $v) {
+							array_push($l, array(
+								'id' => 'cf_' . $v['id'],
+								'name' => $v['name'],
+								'label' => $v['params']['label'],
+								'type'=>$this->typesel('mp',$v['type']),
+								'format'=>$this->formatsel('mp',$v['type']),
+								'extras' => $this->extsel('mp',$v['params']['values'],$v['type']),
+								'req'=> ($v['params']['required'])?1:0,
+								'icon'=>'idef',
+								'nof'=>1
+							));
+						}
+					}
+				}
+				echo json_encode($l);
+				break;
 			case 'sg':
 				$t = $this->wrap->getCustomFields()['custom_fields'];
 				$l = array(
@@ -1528,6 +1596,16 @@ class Newsletter_Wrapper {
 						break;
 				}
                 break;
+			case 'mp':
+				switch ($t) {
+					case 'date':return 'text';
+						break;
+					case 'checkbox':return 'singlecheck';
+						break;
+					default:return $t;
+						break;
+				}
+				break;
 			case 'zc':
 				switch ($t) {
 					case 'email':
@@ -1590,6 +1668,14 @@ class Newsletter_Wrapper {
 						break;
 				}
 				break;
+			case 'mp':
+				switch ($t) {
+					case 'date':return 'text';
+						break;
+					default:return $t;
+						break;
+				}
+				break;
 			case 'zc':
 				switch ($t) {
 					case 'integer':
@@ -1625,6 +1711,14 @@ class Newsletter_Wrapper {
 			case 'hs':
 					foreach ($t as $k => $v) {
 						array_push($a, array('name' => $v['value'],'label' =>  $v['label']));
+					}
+				break;
+			case 'mp':
+					foreach ($t as $k => $v) {
+						if($type !== 'checkbox')
+							array_push($a, array('name' => $v['value']));
+						else
+							array_push($a, array('name' => '1','label' =>  $v['value']));
 					}
 				break;
             default:
@@ -1922,6 +2016,56 @@ class Newsletter_Wrapper {
 				else
 					return '0';//error
 				break;
+			case 'mp':
+				$user = $data;
+				if( MAILPOET_VERSION == null)return '0';//error
+				$mp_sub = new MailPoet\Models\Subscriber;
+			    if($mp_sub::findOne($user['email']))return '2';//already
+				if(isset($user['fname'])){
+					$user['first_name'] = $user['fname'];
+					unset($user['fname']);
+				}
+				if(isset($user['lname'])){
+					$user['last_name'] = $user['lname'];
+					unset($user['lname']);
+				}
+				foreach ($user as $k => $v) {
+					if(is_array($v))$user[$k] = implode(',', $v);
+				}
+
+			    // separate data into default and custom fields
+			    list($default_fields, $custom_fields) = $mp_sub::extractCustomFieldsFromFromObject($user);
+			    // if some required default fields are missing, set their values
+			    $default_fields = $mp_sub::setRequiredFieldsDefaultValues($default_fields);
+
+			    // add subscriber
+			    $new_subscriber = $mp_sub::create();
+			    $new_subscriber->hydrate($default_fields);
+			    $new_subscriber->save();
+			    if($new_subscriber->getErrors() !== false)return '0';//error
+			    if(!empty($custom_fields)) {
+					$new_subscriber->saveCustomFields($custom_fields);
+			    }
+
+			    // reload subscriber to get the saved status/created|updated|delete dates/other fields
+			    $new_subscriber = $mp_sub::findOne($new_subscriber->id);
+
+			    // subscribe to segments and optionally: 1) send confirmation email, 2) schedule welcome email(s)
+			    $mp_subseg = new MailPoet\Models\SubscriberSegment;
+			    $mp_subseg::subscribeToSegments($new_subscriber, array($form['list']['id'] ));
+
+
+					// send confirmation email
+				if( $new_subscriber->status === $mp_sub::STATUS_UNCONFIRMED) {
+					$new_subscriber->sendConfirmationEmail();
+				}
+
+				// schedule welcome email(s)
+				if( $new_subscriber->status === $mp_sub::STATUS_SUBSCRIBED) {
+					$mp_sub::scheduleSubscriberWelcomeNotification($new_subscriber->id, array($form['list']['id'] ));
+				}
+				return '1';//subscribed
+				break;
 			case 'sg':
 				$user = $data;
 				if(isset($user['fname'])){
@@ -2111,6 +2255,12 @@ class Newsletter_Wrapper {
 				$e = $this->wrap->getContact($user);
 				if(count($e->data))
 					return 1;
+				return 0;
+				break;
+			case 'mp':
+				if( MAILPOET_VERSION == null)return 0;
+				$mp_sub = new MailPoet\Models\Subscriber;
+			    if($mp_sub::findOne($data['email']))return 1;
 				return 0;
 				break;
 			case 'sg':
