@@ -55,6 +55,10 @@ class Newsletter_Wrapper {
                 require_once 'gr/GetResponseAPI3.class.php';
 				$this->wrap = new GetResponse($key[0]);
 				break;
+			case 'hs':
+                require_once('hs/Hubspot.php');
+				$this->wrap = new Hubspot($key[0]);
+				break;
 
             default:
             # code...
@@ -96,6 +100,9 @@ class Newsletter_Wrapper {
 						break;
 					case 'gr':
 						echo json_encode($this->wrap->accounts());
+						break;
+					case 'hs':
+						echo json_encode($this->wrap->test());
 						break;
 					default:
 						break;
@@ -201,6 +208,20 @@ class Newsletter_Wrapper {
 						array_push($l, array(
 							'id' => $v->campaignId,
 							'name' => $v->name
+						));
+					}
+				}
+				echo json_encode($l);
+				break;
+			case 'hs':
+				$t = $this->wrap->getLists()['data']['lists'];
+				$l = array();
+				if(count($t) > 0){
+					foreach ($t as $v) {
+						if($v['dynamic'])continue;
+						array_push($l, array(
+							'id' => $v['listId'],
+							'name' => $v['name']
 						));
 					}
 				}
@@ -821,6 +842,52 @@ class Newsletter_Wrapper {
 				}
 				echo json_encode($l);
 				break;
+			case 'hs':
+				$t = $this->wrap->getCustomFields();
+				$l = array(
+					array(
+						'id'=>'email',
+						'name'=>'email',
+						'label'=>'Email Address',
+						'type'=>'text',
+						'format'=>'email',
+						'req'=>1,
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'fname',
+						'name'=>'first name',
+						'label'=>'First Name',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'lname',
+						'name'=>'last name',
+						'label'=>'Last Name',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef'
+					)
+				);
+				if(!empty($t['data'])){
+					foreach ($t['data'] as $v) {
+						if(!$v['formField'] || in_array($v['name'], array('email','firstname','lastname')))continue;
+						array_push($l, array(
+							'id' => $v['name'],
+							'name' => $v['label'],
+							'label' => $v['label'],
+							'type' => $v['fieldType'],
+							'format' => $this->formatsel('hs',$v['type']),
+							'extras' => $this->extsel('hs',$v['options']),
+							'icon'=>'idef',
+							'nof'=>1,
+						));
+					}
+				}
+				echo json_encode($l);
+				break;
 			default:
 				break;
 		}
@@ -881,6 +948,14 @@ class Newsletter_Wrapper {
                         break;
                 }
                 break;
+			case 'hs':
+				switch ($t) {
+					case 'enumeration':return 'text';
+						break;
+					default:return $t;
+						break;
+				}
+				break;
             default:
                 break;
         }
@@ -897,6 +972,11 @@ class Newsletter_Wrapper {
 			case 'gr':
 					foreach ($t as $k => $v) {
 						array_push($a, array('name' => $v ));
+					}
+				break;
+			case 'hs':
+					foreach ($t as $k => $v) {
+						array_push($a, array('name' => $v['value'],'label' =>  $v['label']));
 					}
 				break;
             default:
@@ -1116,6 +1196,32 @@ class Newsletter_Wrapper {
 				else if($e->code == 1008)
 					return '2';//already
 				break;
+			case 'hs':
+				if(isset($data['fname'])){
+					$data['firstname'] = $data['fname'];
+					unset($data['fname']);
+				}
+				if(isset($data['lname'])){
+					$data['lastname'] = $data['lname'];
+					unset($data['lname']);
+				}
+				$user = array();
+				foreach ($data as $key => $value) {
+					array_push($user, array(
+						"property" => $key,
+						"value" => $value
+					));
+				}
+				$e = $this->wrap->addContact(array( "properties" => $user));
+				if($e['status']==400)
+					return '0';//error
+				$atl = array("emails" => array($data['email']));
+				$t = $this->wrap->addToList($atl,$form['list']['id']);
+				if($e['status']==409)
+					return '2';//already
+				if($e['status']==200)
+					return '1';//subscribed
+				break;
 			default:
 				break;
 		}
@@ -1199,6 +1305,12 @@ class Newsletter_Wrapper {
 					return 1;
 				else
 					return 0;
+				break;
+			case 'hs':
+				$user = $data['email'];
+				$e = $this->wrap->getContact($user);
+				if($e['status']==200)return 1;
+				return 0;
 				break;
 			default:
 				break;
