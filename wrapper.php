@@ -51,6 +51,10 @@ class Newsletter_Wrapper {
                 require_once('dp/DripEmail.class.php');
 				$this->wrap = new DripEmail($key[0],$key[1]);
 				break;
+			case 'gr':
+                require_once 'gr/GetResponseAPI3.class.php';
+				$this->wrap = new GetResponse($key[0]);
+				break;
 
             default:
             # code...
@@ -88,6 +92,9 @@ class Newsletter_Wrapper {
 						echo json_encode( $result = $this->wrap->get_clients());
 						break;
 					case 'dp':
+						echo json_encode($this->wrap->accounts());
+						break;
+					case 'gr':
 						echo json_encode($this->wrap->accounts());
 						break;
 					default:
@@ -181,6 +188,19 @@ class Newsletter_Wrapper {
 						array_push($l, array(
 							'id' => $v->ListID,
 							'name' => $v->Name
+						));
+					}
+				}
+				echo json_encode($l);
+				break;
+			case 'gr':
+				$t = (array) $this->wrap->getCampaigns();
+				$l = array();
+				if(!empty($t)){
+					foreach ($t as $v) {
+						array_push($l, array(
+							'id' => $v->campaignId,
+							'name' => $v->name
 						));
 					}
 				}
@@ -765,6 +785,42 @@ class Newsletter_Wrapper {
 				}
 				echo json_encode($l);
 				break;
+			case 'gr':
+				$t = (array) $this->wrap->getCustomFields();
+				$l = array(
+					array(
+						'id'=>'email',
+						'name'=>'email',
+						'label'=>'Email Address',
+						'type'=>'text',
+						'format'=>'email',
+						'req'=>1,
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'name',
+						'name'=>'name',
+						'label'=>'Name',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef'
+					)
+				);
+				if(!empty($t)){
+					foreach ($t as $v) {
+						array_push($l, array(
+							'id' => $v->customFieldId,
+							'name' => $v->name,
+							'label' => $v->name,
+							'type' => $this->typesel('gr',strtolower($v->type)),
+							'format' => $v->valueType,
+							'extras' => $this->extsel('gr',$v->values),
+							'icon'=>'idef'
+						));
+					}
+				}
+				echo json_encode($l);
+				break;
 			default:
 				break;
 		}
@@ -793,6 +849,21 @@ class Newsletter_Wrapper {
 					case 'text':return 'text_box';
 						break;
 					default:
+						break;
+				}
+				break;
+			case 'gr':
+				switch ($t) {
+					case 'date':
+					case 'phone':
+					case 'url':
+					case 'text':return 'text';
+						break;
+					case 'single_select':return 'select';
+						break;
+					case 'multi_select':return 'multiselect';
+						break;
+					default:return $t;
 						break;
 				}
 				break;
@@ -1016,6 +1087,35 @@ class Newsletter_Wrapper {
 					return '0';//error
 				return '1';//subscribed
 				break;
+			case 'gr':
+				$user = array(
+					'email'				=> $data['email'],
+					'campaign'			=> array('campaignId' => $form['list']['id']),
+					'customFieldValues'	=> array()
+				);
+				unset($data['email']);
+				if(isset($data['name'])){
+					$user['name'] = $data['name'];
+					unset($data['name']);
+				}
+				if(isset($form['cycle']) && $form['cycle'] && isset($form['cycled'])){
+					$user['dayOfCycle'] = $form['cycled'].'';
+				}
+				foreach ($data as $key => $value) {
+					$a = array(
+						'customFieldId' => $key,
+						'value' => $value
+					);
+					array_push($user['customFieldValues'], $a);
+				}
+				$e = $this->wrap->addContact($user);
+				if(empty((array) $e))
+					return '1';//subscribed
+				else if($e->code == 1000)
+					return '0';//error
+				else if($e->code == 1008)
+					return '2';//already
+				break;
 			default:
 				break;
 		}
@@ -1089,6 +1189,16 @@ class Newsletter_Wrapper {
 				if($e['http_status']==200)
 					return 1;
 				return 0;
+				break;
+			case 'gr':
+				$user = array(
+					'query' => array('email' => $data['email'])
+				);
+				$e = (array) $this->wrap->getContacts($user);
+				if(isset($e['0']))
+					return 1;
+				else
+					return 0;
 				break;
 			default:
 				break;
