@@ -68,6 +68,10 @@ class Newsletter_Wrapper {
 				));
 				$this->wrap = iContactApi::getInstance();
 				break;
+			case 'ml':
+                require_once('ml/MailerLite.class.php');
+				$this->wrap = new MailerLite($key[0]);
+				break;
 
             default:
             # code...
@@ -115,6 +119,9 @@ class Newsletter_Wrapper {
 						break;
 					case 'ic':
 						echo json_encode($this->wrap->getCampaigns());
+						break;
+					case 'ml':
+						echo json_encode($this->wrap->account());
 						break;
 					default:
 						break;
@@ -247,6 +254,19 @@ class Newsletter_Wrapper {
 						array_push($l, array(
 							'id' => $v->listId,
 							'name' => $v->name
+						));
+					}
+				}
+				echo json_encode($l);
+				break;
+			case 'ml':
+				$t = $this->wrap->getGroups()['data'];
+				$l = array();
+				if(!empty($t)){
+					foreach ($t as $v) {
+						array_push($l, array(
+							'id' => $v['id'],
+							'name' => $v['name']
 						));
 					}
 				}
@@ -1037,6 +1057,52 @@ class Newsletter_Wrapper {
 				}
 				echo json_encode($l);
 				break;
+			case 'ml':
+				$t = (array) $this->wrap->getCustomFields()['data'];
+				$l = array(
+					array(
+						'id'=>'email',
+						'name'=>'email',
+						'label'=>'Email Address',
+						'type'=>'text',
+						'format'=>'email',
+						'req'=>1,
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'name',
+						'name'=>'name',
+						'label'=>'First Name',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'lname',
+						'name'=>'last name',
+						'label'=>'Last Name',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef'
+					)
+				);
+				if(!empty($t)){
+					foreach ($t as $v) {
+						if(in_array($v['key'], array('email','name','last_name')))continue;
+						array_push($l, array(
+							'id' => $v['key'],
+							'name' => $v['title'],
+							'label' => $v['title'],
+							'type'=>'text',
+							'typesel'=>'single',
+							'format'=>$this->formatsel('ml',$v['type']),
+							'icon'=>'idef',
+							'nof'=>1
+						));
+					}
+				}
+				echo json_encode($l);
+				break;
 			default:
 				break;
 		}
@@ -1119,6 +1185,18 @@ class Newsletter_Wrapper {
 					case 'checkbox':return 'text';
 						break;
 					default:return $t;
+						break;
+				}
+				break;
+			case 'ml':
+				switch ($t) {
+					case 'TEXT':return 'text';
+						break;
+					case 'NUMBER':return 'number';
+						break;
+					case 'DATE':return 'date';
+						break;
+					default:return 'text';
 						break;
 				}
 				break;
