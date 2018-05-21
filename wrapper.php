@@ -2291,6 +2291,21 @@ class Newsletter_Wrapper {
 			default:
 				break;
 		}
+    	function get($url){
+    		$resp = wp_remote_get($url,$this->args);
+    		if(is_array($resp)){
+    			return $resp['body'];
+    		}
+    	}
+    	function post($url,$data){
+    		$resp = wp_remote_post($url,$this->args,$data);
+    		if(is_array($resp)){
+    			return $resp['body'];
+    		}
+    	}
+    	function print(){
+    		print_r($this->config);
+    	}
 
 	}
 
