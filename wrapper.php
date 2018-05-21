@@ -24,6 +24,10 @@ class Newsletter_Wrapper {
 					$this->wrap = $aweber->getAccount($this->config['key'][2], $this->config['key'][3]);
 				}
 				break;
+			case 'ac':
+                require_once('ac/ActiveCampaign.class.php');
+				$this->wrap = new ActiveCampaign($key[0],$key[1]);
+				break;
 
             default:
             # code...
@@ -38,6 +42,14 @@ class Newsletter_Wrapper {
 						$credentials = AWeberAPI::getDataFromAweberID($this->config['key'][51]);
 						list($consumerKey, $consumerSecret, $accessKey, $accessSecret) = $credentials;
 						echo json_encode($credentials);
+						break;
+					case 'ac':
+						if(!(int)$this->wrap->credentials_test())
+							$resp=array('status' => 0);
+						else{
+							$resp=array('status' => 1,'data' => $this->wrap->api("account/view"));
+						}
+						echo json_encode($resp);
 						break;
 					default:
 						break;
@@ -64,6 +76,19 @@ class Newsletter_Wrapper {
 						array_push($l, array(
 							'id' => $v['id'],
 							'name' => $v['name']
+						));
+					}
+				}
+				echo json_encode($l);
+				break;
+			case 'ac':
+				$t = $this->wrap->api("list/list?ids=all");
+				$l = array();
+				if($t->result_code){
+					for ($i=0; isset($t->$i) ; $i++) {
+						array_push($l, array(
+							'id' => $t->$i->id,
+							'name' => $t->$i->name
 						));
 					}
 				}
@@ -113,6 +138,59 @@ class Newsletter_Wrapper {
 				}
 				echo json_encode($l);
 				break;
+			case 'ac':
+				$t = $this->wrap->api("list/field/view?ids=all");
+				$l = array(
+					array(
+						'id'=>'email',
+						'name'=>'email',
+						'label'=>'Email Address',
+						'type'=>'text',
+						'format'=>'email',
+						'req'=>1,
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'fname',
+						'name'=>'First Name',
+						'label'=>'First Name',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'lname',
+						'name'=>'Last Name',
+						'label'=>'Last Name',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'phone',
+						'name'=>'Phone',
+						'label'=>'Phone',
+						'type'=>'text',
+						'format'=>'number',
+						'icon'=>'idef'
+					)
+				);
+				if($t->result_code){
+					for ($i=0; isset($t->$i) ; $i++) {
+						array_push($l, array(
+							'id' => $t->$i->id,
+							'name' => $t->$i->title,
+							'label' => $t->$i->title,
+							'type' => $this->typesel('ac',$t->$i->element),
+							'format' => $this->formatsel('ac',$t->$i->element),
+							'extras' => $this->extsel('ac',$t->$i->options),
+							'icon'=>'idef',
+							'nof' => ($t->$i->element == 'date' ? 0 : 1)
+						));
+					}
+				}
+				echo json_encode($l);
+				break;
 			default:
 				break;
 		}
@@ -120,12 +198,29 @@ class Newsletter_Wrapper {
 	}
 	function typesel($s,$t){
 		switch ($s) {
+            case 'ac':
+                switch ($t) {
+                    case 'date':
+                    case 'hidden':return 'text';
+                        break;
+                    default:return $t;
+                        break;
+                }
+                break;
             default:
                 break;
         }
     }
 	function formatsel($s,$t){
 		switch ($s) {
+            case 'ac':
+                switch ($t) {
+                    case 'date':return 'date';
+                        break;
+                    default:return 'text';
+                        break;
+                }
+                break;
             default:
                 break;
         }
@@ -133,6 +228,11 @@ class Newsletter_Wrapper {
 	function extsel($s,$t,$type=null){
 		$a = array();
 		switch ($s) {
+            case 'ac':
+                    foreach ($t as $k => $v) {
+                        array_push($a, array('name' => $v->name));
+                    }
+                break;
             default:
                 break;
         }
@@ -187,6 +287,29 @@ class Newsletter_Wrapper {
 						return '0';//error
 				}
 				break;
+			case 'ac':
+				$user = $data;
+				if(isset($user['fname'])){
+					$user['first_name'] = $user['fname'];
+					unset($user['fname']);
+				}
+				if(isset($user['lname'])){
+					$user['last_name'] = $user['lname'];
+					unset($user['lname']);
+				}
+				$user['p['.$form['list']['id'].']'] = $form['list']['id'];
+				$user['status['.$form['list']['id'].']'] = 1;
+				$e = $this->wrap->api("contact/add", $user);
+				if($e->result_code)
+					return '1';//subscribed
+				else{
+					$i=0;
+					if($e->$i)
+						return '2';//already
+					else
+						return '0';//error
+				}
+				break;
 			default:
 				break;
 		}
@@ -210,6 +333,12 @@ class Newsletter_Wrapper {
 				} catch(AWeberAPIException $exc) {
 					return 0;
 				}
+				break;
+			case 'ac':
+				$e = $this->wrap->api("contact/view?email=".$data['email']);
+				if($e->result_code)
+					return 1;
+				return 0;
 				break;
 			default:
 				break;
