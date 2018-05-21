@@ -47,6 +47,10 @@ class Newsletter_Wrapper {
                require_once 'cm/csrest_subscribers.php';
 				$this->auth = array('api_key' => $key[0]);
 				break;
+			case 'dp':
+                require_once('dp/DripEmail.class.php');
+				$this->wrap = new DripEmail($key[0],$key[1]);
+				break;
 
             default:
             # code...
@@ -82,6 +86,9 @@ class Newsletter_Wrapper {
 					case 'cm':
 						$this->wrap = new CS_REST_General($this->auth);
 						echo json_encode( $result = $this->wrap->get_clients());
+						break;
+					case 'dp':
+						echo json_encode($this->wrap->accounts());
 						break;
 					default:
 						break;
@@ -729,6 +736,35 @@ class Newsletter_Wrapper {
 				}
 				echo json_encode($l);
 				break;
+			case 'dp':
+				$t = $this->wrap->getCustomFields()['data']['custom_field_identifiers'];
+				$l = array(
+					array(
+						'id'=>'email',
+						'name'=>'email',
+						'label'=>'Email Address',
+						'type'=>'text',
+						'format'=>'email',
+						'req'=>1,
+						'icon'=>'idef'
+					)
+				);
+				if(!empty($t)){
+					foreach ($t as $v) {
+						array_push($l, array(
+							'id' => $v,
+							'name' => $v,
+							'label' => $v,
+							'type'=>'text',
+							'typesel'=>'single',
+							'format'=>'text',
+							'icon'=>'idef',
+							'nof'=>1
+						));
+					}
+				}
+				echo json_encode($l);
+				break;
 			default:
 				break;
 		}
@@ -967,6 +1003,19 @@ class Newsletter_Wrapper {
 				else
 					return '0';//error
 				break;
+			case 'dp':
+				if($this->verify($form,$data))return '2';//already
+				$user = array('custom_fields' => $data);
+				if(isset($user['custom_fields']['email'])){
+					$user['email'] = $user['custom_fields']['email'];
+					unset($user['custom_fields']['email']);
+				}
+				$e = $this->wrap->addContact(array("subscribers" => array($user)));
+
+				if($e['http_status'] != 200)
+					return '0';//error
+				return '1';//subscribed
+				break;
 			default:
 				break;
 		}
@@ -1033,6 +1082,13 @@ class Newsletter_Wrapper {
 				}
 				else
 					return 0;//error
+				break;
+			case 'dp':
+				$user = $data['email'];
+				$e = $this->wrap->getContact($user);
+				if($e['http_status']==200)
+					return 1;
+				return 0;
 				break;
 			default:
 				break;
