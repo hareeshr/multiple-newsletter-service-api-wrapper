@@ -313,6 +313,21 @@ class Newsletter_Wrapper {
 				}
 				echo json_encode($l);
 				break;
+			case 'ms':
+				$l = array();
+				if( function_exists( 'mailster' ) ){
+					$t = mailster( 'lists' )->get();
+					if(count($t) > 0){
+						foreach ($t as $v) {
+							array_push($l, array(
+								'id' => $v->ID,
+								'name' => $v->name
+							));
+						}
+					}
+				}
+				echo json_encode($l);
+				break;
 			case 'mp':
 				$l = array();
 				if( MAILPOET_VERSION !== null){
@@ -1284,6 +1299,47 @@ class Newsletter_Wrapper {
 				}
 				echo json_encode($l);
 				break;
+			case 'ms':
+				$l = array(
+					array(
+						'id'=>'email',
+						'name'=>'email',
+						'label'=>'Email Address',
+						'type'=>'text',
+						'format'=>'email',
+						'req'=>1,
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'fname',
+						'name'=>'first name',
+						'label'=>'First Name',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'lname',
+						'name'=>'last name',
+						'label'=>'Last Name',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'customfield',
+						'name'=>'custom field',
+						'label'=>'Custom Field',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef',
+						'noid'=>1,
+						'not'=>1,
+						'nof'=>1
+					)
+				);
+				echo json_encode($l);
+				break;
 			case 'sg':
 				$t = $this->wrap->getCustomFields()['custom_fields'];
 				$l = array(
@@ -2066,6 +2122,26 @@ class Newsletter_Wrapper {
 				}
 				return '1';//subscribed
 				break;
+			case 'ms':
+				$user = $data;
+				if( !function_exists( 'mailster' ) )return '0';//error
+				if(mailster( 'subscribers' )->get_by_mail( $user['email'], false ))return '2';//already
+				if(isset($user['fname'])){
+					$user['first_name'] = $user['fname'];
+					unset($user['fname']);
+				}
+				if(isset($user['lname'])){
+					$user['last_name'] = $user['lname'];
+					unset($user['lname']);
+				}
+				$e = mailster( 'subscribers' )->add( $user, 'true' );
+				if ( ! is_wp_error( $e ) ) {
+					mailster( 'subscribers' )->assign_lists( $e, array($form['list']['id'] ) );
+					return '1';//subscribed
+				} else {
+					return '0';//error
+				}
+				break;
 			case 'sg':
 				$user = $data;
 				if(isset($user['fname'])){
@@ -2261,6 +2337,11 @@ class Newsletter_Wrapper {
 				if( MAILPOET_VERSION == null)return 0;
 				$mp_sub = new MailPoet\Models\Subscriber;
 			    if($mp_sub::findOne($data['email']))return 1;
+				return 0;
+				break;
+			case 'ms':
+				if( !function_exists( 'mailster' ) )return 0;//error
+				if(mailster( 'subscribers' )->get_by_mail( $data['email'], false ))return 1;
 				return 0;
 				break;
 			case 'sg':
