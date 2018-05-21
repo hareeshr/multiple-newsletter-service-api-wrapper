@@ -76,6 +76,10 @@ class Newsletter_Wrapper {
                 require_once('mm/MadMimi.class.php');
 				$this->wrap = new MadMimi($key[0],$key[1]);
 				break;
+			case 'sg':
+                require_once('sg/SendGrid.php');
+				$this->wrap = new SendGrid($key[0]);
+				break;
 
             default:
             # code...
@@ -129,6 +133,9 @@ class Newsletter_Wrapper {
 						break;
 					case 'mm':
 						echo json_encode($this->wrap->getLists());
+						break;
+					case 'sg':
+						echo json_encode($this->wrap->test());
 						break;
 					default:
 						break;
@@ -281,6 +288,19 @@ class Newsletter_Wrapper {
 				break;
 			case 'mm':
 				$t = (array) $this->wrap->getLists()->data;
+				$l = array();
+				if(count($t) > 0){
+					foreach ($t as $v) {
+						array_push($l, array(
+							'id' => $v['id'],
+							'name' => $v['name']
+						));
+					}
+				}
+				echo json_encode($l);
+				break;
+			case 'sg':
+				$t = $this->wrap->getLists()['lists'];
 				$l = array();
 				if(count($t) > 0){
 					foreach ($t as $v) {
@@ -1156,6 +1176,51 @@ class Newsletter_Wrapper {
 				);
 				echo json_encode($l);
 				break;
+			case 'sg':
+				$t = $this->wrap->getCustomFields()['custom_fields'];
+				$l = array(
+					array(
+						'id'=>'email',
+						'name'=>'email',
+						'label'=>'Email Address',
+						'type'=>'text',
+						'format'=>'email',
+						'req'=>1,
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'fname',
+						'name'=>'first name',
+						'label'=>'First Name',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'lname',
+						'name'=>'last name',
+						'label'=>'Last Name',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef'
+					)
+				);
+				if(!empty($t)){
+					foreach ($t as $v) {
+						array_push($l, array(
+							'id' => $v['id'],
+							'name' => $v['name'],
+							'label' => $v['name'],
+							'type' => 'text',
+							'typesel'=>'single',
+							'format' => $v['type'],
+							'icon'=>'idef',
+							'nof'=>1
+						));
+					}
+				}
+				echo json_encode($l);
+				break;
 			default:
 				break;
 		}
@@ -1571,6 +1636,24 @@ class Newsletter_Wrapper {
 				else
 					return '0';//error
 				break;
+			case 'sg':
+				$user = $data;
+				if(isset($user['fname'])){
+					$user['first_name'] = $user['fname'];
+					unset($user['fname']);
+				}
+				if(isset($user['lname'])){
+					$user['last_name'] = $user['lname'];
+					unset($user['lname']);
+				}
+				$e = $this->wrap->addContact(array($user));
+				if($e['error_count'])
+					return '0';//error
+				$t = $this->wrap->addToList($e['persisted_recipients'][0],$form['list']['id']);
+				if($e['new_count'])
+					return '1';//subscribed
+				return '2';//already
+				break;
 			default:
 				break;
 		}
@@ -1689,6 +1772,12 @@ class Newsletter_Wrapper {
 				$e = $this->wrap->getContact($user);
 				if(count($e->data))
 					return 1;
+				return 0;
+				break;
+			case 'sg':
+				$user = base64_encode($data['email']);
+				$e = $this->wrap->getContact($user);
+				if(isset($e['email']))return 1;
 				return 0;
 				break;
 			default:
