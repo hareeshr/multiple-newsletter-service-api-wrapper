@@ -59,6 +59,15 @@ class Newsletter_Wrapper {
                 require_once('hs/Hubspot.php');
 				$this->wrap = new Hubspot($key[0]);
 				break;
+			case 'ic':
+                require_once 'ic/iContactApi.php';
+				iContactApi::getInstance()->setConfig(array(
+					'appId'			=> $key[0],
+					'apiPassword'	=> $key[2],
+					'apiUsername'	=> $key[1]
+				));
+				$this->wrap = iContactApi::getInstance();
+				break;
 
             default:
             # code...
@@ -103,6 +112,9 @@ class Newsletter_Wrapper {
 						break;
 					case 'hs':
 						echo json_encode($this->wrap->test());
+						break;
+					case 'ic':
+						echo json_encode($this->wrap->getCampaigns());
 						break;
 					default:
 						break;
@@ -222,6 +234,19 @@ class Newsletter_Wrapper {
 						array_push($l, array(
 							'id' => $v['listId'],
 							'name' => $v['name']
+						));
+					}
+				}
+				echo json_encode($l);
+				break;
+			case 'ic':
+				$t = $this->wrap->getLists();
+				$l = array();
+				if(count($t) > 0){
+					foreach ($t as $v) {
+						array_push($l, array(
+							'id' => $v->listId,
+							'name' => $v->name
 						));
 					}
 				}
@@ -888,6 +913,130 @@ class Newsletter_Wrapper {
 				}
 				echo json_encode($l);
 				break;
+			case 'ic':
+				$t = $this->wrap->getFields();
+				$l = array(
+					array(
+						'id'=>'email',
+						'name'=>'email',
+						'label'=>'Email Address',
+						'type'=>'text',
+						'format'=>'email',
+						'req'=>1,
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'fname',
+						'name'=>'firstname',
+						'label'=>'First Name',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'lname',
+						'name'=>'lastname',
+						'label'=>'Last Name',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'ic01',
+						'name'=>'prefix',
+						'label'=>'Prefix',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'ic02',
+						'name'=>'suffix',
+						'label'=>'Suffix',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'ic03',
+						'name'=>'fax',
+						'label'=>'Fax',
+						'type'=>'text',
+						'format'=>'number',
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'ic04',
+						'name'=>'phone',
+						'label'=>'Phone',
+						'type'=>'text',
+						'format'=>'number',
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'ic05',
+						'name'=>'business',
+						'label'=>'Business',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'ic06',
+						'name'=>'address1',
+						'label'=>'Address 1',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'ic07',
+						'name'=>'address2',
+						'label'=>'Address 2',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'ic08',
+						'name'=>'city',
+						'label'=>'City',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'ic09',
+						'name'=>'state',
+						'label'=>'State',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'ic10',
+						'name'=>'zip',
+						'label'=>'Zip',
+						'type'=>'text',
+						'format'=>'number',
+						'icon'=>'idef'
+					)
+				);
+				if(!empty($t)){
+					foreach ($t as $v) {
+						array_push($l, array(
+							'id' => $v->customFieldId,
+							'name' => $v->publicName,
+							'label' => $v->publicName,
+							'type' => $this->typesel('ic',strtolower($v->fieldType)),
+							'typesel' => $this->typesel('ic',strtolower($v->fieldType)),
+							'icon'=>'idef',
+							'format' => $this->formatsel('ic',strtolower($v->fieldType))
+						));
+					}
+				}
+				echo json_encode($l);
+				break;
 			default:
 				break;
 		}
@@ -934,6 +1083,15 @@ class Newsletter_Wrapper {
 						break;
 				}
 				break;
+			case 'ic':
+				switch ($t) {
+					case 'text':return 'text_box';
+						break;
+					case 'checkbox':return 'choice';
+						break;
+					default:return 'text';
+						break;
+				}
             default:
                 break;
         }
@@ -951,6 +1109,14 @@ class Newsletter_Wrapper {
 			case 'hs':
 				switch ($t) {
 					case 'enumeration':return 'text';
+						break;
+					default:return $t;
+						break;
+				}
+				break;
+			case 'ic':
+				switch ($t) {
+					case 'checkbox':return 'text';
 						break;
 					default:return $t;
 						break;
@@ -1222,6 +1388,27 @@ class Newsletter_Wrapper {
 				if($e['status']==200)
 					return '1';//subscribed
 				break;
+			case 'ic':
+				$user = $data;
+				if(isset($user['fname'])){
+					$user['firstName'] = $user['fname'];
+					unset($user['fname']);
+				}
+				if(isset($user['lname'])){
+					$user['lastName'] = $user['lname'];
+					unset($user['lname']);
+				}
+				$e = $this->wrap->addOppoContact($user);
+				if(empty($e))
+					return '0';//error
+				if($e->contactId){
+					$t = $this->wrap->subscribeContactToList($e->contactId,$form['list']['id']);
+					if(empty($t))
+						return '2';//already
+					else
+						return '1';//subscribed
+				}
+				break;
 			default:
 				break;
 		}
@@ -1311,6 +1498,19 @@ class Newsletter_Wrapper {
 				$e = $this->wrap->getContact($user);
 				if($e['status']==200)return 1;
 				return 0;
+				break;
+			case 'ic':
+				$user = $data['email'];
+				$e = $this->wrap->getContactWithEmail($user);
+				if(empty($e))
+					return 0;
+				else{
+					$t = $this->wrap->CheckingContactWithListId($e[0]->contactId,$form['list']['id']);
+					if(empty($t->contacts) || $t->contacts[0]->status != 'normal')
+						return 0;
+					else
+						return 1;
+				}
 				break;
 			default:
 				break;
