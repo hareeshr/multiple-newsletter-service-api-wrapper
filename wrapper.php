@@ -72,6 +72,10 @@ class Newsletter_Wrapper {
                 require_once('ml/MailerLite.class.php');
 				$this->wrap = new MailerLite($key[0]);
 				break;
+			case 'mm':
+                require_once('mm/MadMimi.class.php');
+				$this->wrap = new MadMimi($key[0],$key[1]);
+				break;
 
             default:
             # code...
@@ -122,6 +126,9 @@ class Newsletter_Wrapper {
 						break;
 					case 'ml':
 						echo json_encode($this->wrap->account());
+						break;
+					case 'mm':
+						echo json_encode($this->wrap->getLists());
 						break;
 					default:
 						break;
@@ -263,6 +270,19 @@ class Newsletter_Wrapper {
 				$t = $this->wrap->getGroups()['data'];
 				$l = array();
 				if(!empty($t)){
+					foreach ($t as $v) {
+						array_push($l, array(
+							'id' => $v['id'],
+							'name' => $v['name']
+						));
+					}
+				}
+				echo json_encode($l);
+				break;
+			case 'mm':
+				$t = (array) $this->wrap->getLists()->data;
+				$l = array();
+				if(count($t) > 0){
 					foreach ($t as $v) {
 						array_push($l, array(
 							'id' => $v['id'],
@@ -1103,6 +1123,39 @@ class Newsletter_Wrapper {
 				}
 				echo json_encode($l);
 				break;
+			case 'mm':
+				$l = array(
+					array(
+						'id'=>'email',
+						'name'=>'email',
+						'label'=>'Email Address',
+						'type'=>'text',
+						'format'=>'email',
+						'req'=>1,
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'name',
+						'name'=>'name',
+						'label'=>'Name',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'customfield',
+						'name'=>'custom field',
+						'label'=>'Custom Field',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef',
+						'typesel'=>'single',
+						'noid'=>1,
+						'nof'=>1
+					)
+				);
+				echo json_encode($l);
+				break;
 			default:
 				break;
 		}
@@ -1487,6 +1540,37 @@ class Newsletter_Wrapper {
 						return '1';//subscribed
 				}
 				break;
+			case 'ml':
+				$user = array('fields' => $data);
+				if(isset($user['fields']['lname'])){
+					$user['fields']['last_name'] = $user['fields']['lname'];
+					unset($user['fields']['lname']);
+				}
+				if(isset($user['fields']['email'])){
+					$user['email'] = $user['fields']['email'];
+					unset($user['fields']['email']);
+				}
+				if(isset($user['fields']['name'])){
+					$user['name'] = $user['fields']['name'];
+					unset($user['fields']['name']);
+				}
+				$e = $this->wrap->addContact($user, $form['list']['id']);
+				if($e['http_status'] != 200)
+					return '0';//error
+				if($e['data']['date_created'] == $e['data']['date_updated'])
+					return '1';//subscribed
+				return '2';//already
+				break;
+			case 'mm':
+				$user = $data;
+				$e = $this->wrap->addContact($user, $form['list']['id']);
+				if($e->http_status == 200)
+					return '1';//subscribed
+				elseif($e->http_status == 409)
+					return '2';//already
+				else
+					return '0';//error
+				break;
 			default:
 				break;
 		}
@@ -1589,6 +1673,23 @@ class Newsletter_Wrapper {
 					else
 						return 1;
 				}
+				break;
+			case 'ml':
+				$user = $data['email'];
+				$e = $this->wrap->getContact($user);
+				if($e['http_status']==200)
+					if($e['data']['type'] == 'active')
+						return 1;
+				return 0;
+				break;
+			case 'mm':
+				$user = array(
+					'email' => $data['email']
+				);
+				$e = $this->wrap->getContact($user);
+				if(count($e->data))
+					return 1;
+				return 0;
 				break;
 			default:
 				break;
