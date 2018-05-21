@@ -36,6 +36,10 @@ class Newsletter_Wrapper {
                 require_once('cc/ConstantContact.class.php');
 				$this->wrap = new ConstantContact($key[0],$key[1]);
 				break;
+			case 'ck':
+                require_once('ck/ConvertKit.class.php');
+				$this->wrap = new ConvertKit($key[0],$key[1]);
+				break;
 
             default:
             # code...
@@ -64,6 +68,9 @@ class Newsletter_Wrapper {
 						break;
 					case 'cc':
 						echo json_encode($this->wrap->accounts());
+						break;
+					case 'ck':
+						echo json_encode($this->wrap->getForms());
 						break;
 					default:
 						break;
@@ -126,6 +133,19 @@ class Newsletter_Wrapper {
 				$l = array();
 				if(count($t) > 0){
 					foreach ($t as $v) {
+						array_push($l, array(
+							'id' => $v['id'],
+							'name' => $v['name']
+						));
+					}
+				}
+				echo json_encode($l);
+				break;
+			case 'ck':
+				$t = $this->wrap->getForms()['data'];
+				$l = array();
+				if(count($t['forms']) > 0){
+					foreach ($t['forms'] as $v) {
 						array_push($l, array(
 							'id' => $v['id'],
 							'name' => $v['name']
@@ -607,6 +627,44 @@ class Newsletter_Wrapper {
 				}
 				echo json_encode($l);
 				break;
+			case 'ck':
+				$t = (array) $this->wrap->getCustomFields()['data']['custom_fields'];
+				$l = array(
+					array(
+						'id'=>'email',
+						'name'=>'email',
+						'label'=>'Email Address',
+						'type'=>'text',
+						'format'=>'email',
+						'req'=>1,
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'fname',
+						'name'=>'first name',
+						'label'=>'First Name',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef'
+					)
+				);
+				if(!empty($t)){
+					foreach ($t as $v) {
+						if($v['key'] == 'email')continue;
+						array_push($l, array(
+							'id' => $v['key'],
+							'name' => $v['label'],
+							'label' => $v['label'],
+							'type'=>'text',
+							'format'=>'text',
+							'icon'=>'idef',
+							'not'=>1,
+							'nof'=>1
+						));
+					}
+				}
+				echo json_encode($l);
+				break;
 			default:
 				break;
 		}
@@ -780,6 +838,22 @@ class Newsletter_Wrapper {
 				else
 					return '0';//error
 				break;
+			case 'ck':
+				if($this->verify($form,$data))return '2';//already
+				$user = array('fields' => $data);
+				if(isset($user['fields']['fname'])){
+					$user['first_name'] = $user['fields']['fname'];
+					unset($user['fields']['fname']);
+				}
+				if(isset($user['fields']['email'])){
+					$user['email'] = $user['fields']['email'];
+					unset($user['fields']['email']);
+				}
+				$e = $this->wrap->addContact($user, $form['list']['id']);
+				if($e['http_status'] != 200)
+					return '0';//error
+				return '1';//subscribed
+				break;
 			default:
 				break;
 		}
@@ -823,6 +897,15 @@ class Newsletter_Wrapper {
 				$e = $this->wrap->getContact($user);
 				if(count($e->data['results']) && $e->data['results'][0]['status'] == 'ACTIVE')
 					return 1;
+				return 0;
+				break;
+			case 'ck':
+				$user = $data['email'];
+				$e = $this->wrap->getContact($user);
+				if($e['http_status']==200)
+					if($e['data']['total_subscribers'] > 0)
+						if($e['data']['subscribers'][0]['state'] == 'active')
+							return 1;
 				return 0;
 				break;
 			default:
