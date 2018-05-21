@@ -28,6 +28,10 @@ class Newsletter_Wrapper {
                 require_once('ac/ActiveCampaign.class.php');
 				$this->wrap = new ActiveCampaign($key[0],$key[1]);
 				break;
+			case 'be':
+                require_once('be/BenchmarkEmail.php');
+				$this->wrap = new benchmarkemail_api($key[0]);
+				break;
 
             default:
             # code...
@@ -50,6 +54,9 @@ class Newsletter_Wrapper {
 							$resp=array('status' => 1,'data' => $this->wrap->api("account/view"));
 						}
 						echo json_encode($resp);
+						break;
+					case 'be':
+						echo json_encode($this->wrap->lists());
 						break;
 					default:
 						break;
@@ -89,6 +96,19 @@ class Newsletter_Wrapper {
 						array_push($l, array(
 							'id' => $t->$i->id,
 							'name' => $t->$i->name
+						));
+					}
+				}
+				echo json_encode($l);
+				break;
+			case 'be':
+				$t = $this->wrap->lists();
+				$l = array();
+				if(count($t) > 0){
+					foreach ($t as $v) {
+						array_push($l, array(
+							'id' => $v['id'],
+							'name' => $v['listname']
 						));
 					}
 				}
@@ -189,6 +209,284 @@ class Newsletter_Wrapper {
 						));
 					}
 				}
+				echo json_encode($l);
+				break;
+			case 'be':
+				$l = array(
+					array(
+						'id'=>'email',
+						'name'=>'email',
+						'label'=>'Email Address',
+						'type'=>'text',
+						'format'=>'email',
+						'req'=>1,
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'fname',
+						'name'=>'first name',
+						'label'=>'First Name',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'lname',
+						'name'=>'last name',
+						'label'=>'Last Name',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'middlename',
+						'name'=>'middle name',
+						'label'=>'Middle Name',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'field1',
+						'name'=>'address',
+						'label'=>'Address',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef',
+						'typesel'=>'single',
+						'nof'=>1
+					),
+					array(
+						'id'=>'field2',
+						'name'=>'city',
+						'label'=>'City',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef',
+						'typesel'=>'single',
+						'nof'=>1
+					),
+					array(
+						'id'=>'field3',
+						'name'=>'state',
+						'label'=>'State',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef',
+						'typesel'=>'single',
+						'nof'=>1
+					),
+					array(
+						'id'=>'field4',
+						'name'=>'zip',
+						'label'=>'Zip',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef',
+						'typesel'=>'single',
+						'nof'=>1
+					),
+					array(
+						'id'=>'field5',
+						'name'=>'country',
+						'label'=>'Country',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef',
+						'typesel'=>'single',
+						'nof'=>1
+					),
+					array(
+						'id'=>'field6',
+						'name'=>'phone',
+						'label'=>'Phone',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef',
+						'typesel'=>'single',
+						'nof'=>1
+					),
+					array(
+						'id'=>'field7',
+						'name'=>'fax',
+						'label'=>'Fax',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef',
+						'typesel'=>'single',
+						'nof'=>1
+					),
+					array(
+						'id'=>'field8',
+						'name'=>'cell phone',
+						'label'=>'Cell Phone',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef',
+						'typesel'=>'single',
+						'nof'=>1
+					),
+					array(
+						'id'=>'field9',
+						'name'=>'company name',
+						'label'=>'Company Name',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef',
+						'typesel'=>'single',
+						'nof'=>1
+					),
+					array(
+						'id'=>'field10',
+						'name'=>'job title',
+						'label'=>'Job Title',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef',
+						'typesel'=>'single',
+						'nof'=>1
+					),
+					array(
+						'id'=>'field11',
+						'name'=>'business phone',
+						'label'=>'Business Phone',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef',
+						'typesel'=>'single',
+						'nof'=>1
+					),
+					array(
+						'id'=>'field12',
+						'name'=>'business fax',
+						'label'=>'Business Fax',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef',
+						'typesel'=>'single',
+						'nof'=>1
+					),
+					array(
+						'id'=>'field13',
+						'name'=>'business address',
+						'label'=>'Business Address',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef',
+						'typesel'=>'single',
+						'nof'=>1
+					),
+					array(
+						'id'=>'field14',
+						'name'=>'business city',
+						'label'=>'Business City',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef',
+						'typesel'=>'single',
+						'nof'=>1
+					),
+					array(
+						'id'=>'field15',
+						'name'=>'business state',
+						'label'=>'Business State',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef',
+						'typesel'=>'single',
+						'nof'=>1
+					),
+					array(
+						'id'=>'field16',
+						'name'=>'business zip',
+						'label'=>'Business Zip',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef',
+						'typesel'=>'single',
+						'nof'=>1
+					),
+					array(
+						'id'=>'field17',
+						'name'=>'business country',
+						'label'=>'Business Country',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef',
+						'typesel'=>'single',
+						'nof'=>1
+					),
+					array(
+						'id'=>'field18',
+						'name'=>'notes',
+						'label'=>'Notes',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef',
+						'typesel'=>'single',
+						'nof'=>1
+					),
+					array(
+						'id'=>'field19',
+						'name'=>'date 1',
+						'label'=>'Date 1',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef',
+						'typesel'=>'single',
+						'nof'=>1
+					),
+					array(
+						'id'=>'field20',
+						'name'=>'date 2',
+						'label'=>'Date 2',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef',
+						'typesel'=>'single',
+						'nof'=>1
+					),
+					array(
+						'id'=>'field21',
+						'name'=>'extra 3',
+						'label'=>'Extra 3',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef',
+						'typesel'=>'single',
+						'nof'=>1
+					),
+					array(
+						'id'=>'field22',
+						'name'=>'extra 4',
+						'label'=>'Extra 4',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef',
+						'typesel'=>'single',
+						'nof'=>1
+					),
+					array(
+						'id'=>'field23',
+						'name'=>'extra 5',
+						'label'=>'Extra 5',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef',
+						'typesel'=>'single',
+						'nof'=>1
+					),
+					array(
+						'id'=>'field24',
+						'name'=>'extra 6',
+						'label'=>'Extra 6',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef',
+						'typesel'=>'single',
+						'nof'=>1
+					)
+				);
 				echo json_encode($l);
 				break;
 			default:
@@ -310,6 +608,22 @@ class Newsletter_Wrapper {
 						return '0';//error
 				}
 				break;
+			case 'be':
+				$user = $data;
+				if(isset($user['fname'])){
+					$user['firstname'] = $user['fname'];
+					unset($user['fname']);
+				}
+				if(isset($user['lname'])){
+					$user['lastname'] = $user['lname'];
+					unset($user['lname']);
+				}
+				$t = $this->wrap->find($user['email'],$form['list']['id']);
+				if(!empty($t))return '2';//already
+				$e = $this->wrap->addContact($user,$form['list']['id']);
+				if($e == '1')return '1';//subscribed
+				return '0';//error
+				break;
 			default:
 				break;
 		}
@@ -338,6 +652,12 @@ class Newsletter_Wrapper {
 				$e = $this->wrap->api("contact/view?email=".$data['email']);
 				if($e->result_code)
 					return 1;
+				return 0;
+				break;
+			case 'be':
+				$user = $data['email'];
+				$t = $this->wrap->find($user,$form['list']['id']);
+				if(!empty($t))return 1;
 				return 0;
 				break;
 			default:
