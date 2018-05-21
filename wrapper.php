@@ -80,6 +80,10 @@ class Newsletter_Wrapper {
                 require_once('sg/SendGrid.php');
 				$this->wrap = new SendGrid($key[0]);
 				break;
+			case 'vr':
+                require_once('vr/VerticalResponse.class.php');
+				$this->wrap = new VerticalResponse($key[0],$key[1],$key[2]);
+				break;
 
             default:
             # code...
@@ -136,6 +140,9 @@ class Newsletter_Wrapper {
 						break;
 					case 'sg':
 						echo json_encode($this->wrap->test());
+						break;
+					case 'vr':
+						echo json_encode($this->wrap->getAccessToken());
 						break;
 					default:
 						break;
@@ -307,6 +314,19 @@ class Newsletter_Wrapper {
 						array_push($l, array(
 							'id' => $v['id'],
 							'name' => $v['name']
+						));
+					}
+				}
+				echo json_encode($l);
+				break;
+			case 'vr':
+				$t = (array) $this->wrap->getLists()->data['items'];
+				$l = array();
+				if(count($t) > 0){
+					foreach ($t as $v) {
+						array_push($l, array(
+							'id' => $v['attributes']['id'],
+							'name' => $v['attributes']['name']
 						));
 					}
 				}
@@ -1221,6 +1241,173 @@ class Newsletter_Wrapper {
 				}
 				echo json_encode($l);
 				break;
+			case 'vr':
+				$t = $this->wrap->getCustomFields();
+				$l = array(
+					array(
+						'id'=>'email',
+						'name'=>'email',
+						'label'=>'Email Address',
+						'type'=>'text',
+						'format'=>'email',
+						'req'=>1,
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'fname',
+						'name'=>'first_name',
+						'label'=>'First Name',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'lname',
+						'name'=>'last_name',
+						'label'=>'Last Name',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'birthdate',
+						'name'=>'birthdate',
+						'label'=>'Birth Date',
+						'type'=>'text',
+						'format'=>'date',
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'gender',
+						'name'=>'gender',
+						'label'=>'Gender',
+						'type'=>'select',
+						'typesel'=>'single_select',
+						'format'=>'text',
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'marital_status',
+						'name'=>'marital_status',
+						'label'=>'Marital Status',
+						'type'=>'select',
+						'typesel'=>'single_select',
+						'format'=>'text',
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'company',
+						'name'=>'company',
+						'label'=>'Company',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'title',
+						'name'=>'title',
+						'label'=>'Title',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'website',
+						'name'=>'website',
+						'label'=>'Website',
+						'type'=>'text',
+						'format'=>'url',
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'street_address',
+						'name'=>'street_address',
+						'label'=>'Street Address',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'extended_address',
+						'name'=>'extended_address',
+						'label'=>'Extended Address',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'city',
+						'name'=>'city',
+						'label'=>'City',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'region',
+						'name'=>'region',
+						'label'=>'Region',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'country',
+						'name'=>'country',
+						'label'=>'Country',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'home_phone',
+						'name'=>'home_phone',
+						'label'=>'Home phone',
+						'type'=>'text',
+						'format'=>'number',
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'mobile_phone',
+						'name'=>'mobile_phone',
+						'label'=>'Mobile phone',
+						'type'=>'text',
+						'format'=>'number',
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'work_phone',
+						'name'=>'work_phone',
+						'label'=>'Work Phone',
+						'type'=>'text',
+						'format'=>'number',
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'fax',
+						'name'=>'fax',
+						'label'=>'Fax',
+						'type'=>'text',
+						'format'=>'number',
+						'icon'=>'idef'
+					)
+				);
+				if(count($t->data['items']) > 0){
+					foreach ($t->data['items'] as $v) {
+						array_push($l, array(
+							'id' => $v['attributes']['name'],
+							'name' => $v['attributes']['name'],
+							'label' => $v['attributes']['name'],
+							'type' => 'text',
+							'typesel'=>'single',
+							'format' => 'text',
+							'icon'=>'idef',
+							'nof'=>1
+						));
+					}
+				}
+				echo json_encode($l);
+				break;
 			default:
 				break;
 		}
@@ -1654,6 +1841,34 @@ class Newsletter_Wrapper {
 					return '1';//subscribed
 				return '2';//already
 				break;
+			case 'vr':
+				$custom = array();
+				$df = array('email','first_name','last_name','birthdate','gender','marital_status','company','title','website','street_address','extended_address','city','region','country','home_phone','mobile_phone','work_phone','fax');
+				$user = $data;
+				if(isset($user['fname'])){
+					$user['first_name'] = $user['fname'];
+					unset($user['fname']);
+				}
+				if(isset($user['lname'])){
+					$user['last_name'] = $user['lname'];
+					unset($user['lname']);
+				}
+				foreach ($data as $key => $value) {
+					if(!in_array($key, $df)){
+						$custom[$key]=$value;
+						unset($user[$key]);
+					}
+				}
+				if($custom)
+					$user['custom'] = $custom;
+				$e = $this->wrap->addContact($user, $form['list']['id']);
+				if($e->http_status == 201)
+					return '1';//subscribed
+				elseif($e->http_status == 409)
+					return '2';//already
+				else
+					return '0';//error
+				break;
 			default:
 				break;
 		}
@@ -1778,6 +1993,15 @@ class Newsletter_Wrapper {
 				$user = base64_encode($data['email']);
 				$e = $this->wrap->getContact($user);
 				if(isset($e['email']))return 1;
+				return 0;
+				break;
+			case 'vr':
+				$user = array(
+					'email' => $data['email']
+				);
+				$e = $this->wrap->getContact($user);
+				if(count($e->data['items']) && $e->data['items'][0]['attributes']['status'] == 'mailable')
+					return 1;
 				return 0;
 				break;
 			default:
