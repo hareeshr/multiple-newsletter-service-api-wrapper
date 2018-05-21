@@ -40,6 +40,13 @@ class Newsletter_Wrapper {
                 require_once('ck/ConvertKit.class.php');
 				$this->wrap = new ConvertKit($key[0],$key[1]);
 				break;
+			case 'cm':
+               require_once 'cm/csrest_general.php';
+               require_once 'cm/csrest_clients.php';
+               require_once 'cm/csrest_lists.php';
+               require_once 'cm/csrest_subscribers.php';
+				$this->auth = array('api_key' => $key[0]);
+				break;
 
             default:
             # code...
@@ -71,6 +78,10 @@ class Newsletter_Wrapper {
 						break;
 					case 'ck':
 						echo json_encode($this->wrap->getForms());
+						break;
+					case 'cm':
+						$this->wrap = new CS_REST_General($this->auth);
+						echo json_encode( $result = $this->wrap->get_clients());
 						break;
 					default:
 						break;
@@ -149,6 +160,20 @@ class Newsletter_Wrapper {
 						array_push($l, array(
 							'id' => $v['id'],
 							'name' => $v['name']
+						));
+					}
+				}
+				echo json_encode($l);
+				break;
+			case 'cm':
+				$this->wrap = new CS_REST_Clients($this->config['key'][1],$this->auth);
+				$t = $this->wrap->get_lists();
+				$l = array();
+				if(count($t->response) > 0){
+					foreach ($t->response as $v) {
+						array_push($l, array(
+							'id' => $v->ListID,
+							'name' => $v->Name
 						));
 					}
 				}
@@ -665,6 +690,45 @@ class Newsletter_Wrapper {
 				}
 				echo json_encode($l);
 				break;
+			case 'cm':
+				$this->wrap = new CS_REST_Lists($l,$this->auth);
+				$t = $this->wrap->get_custom_fields();
+				$l = array(
+					array(
+						'id'=>'email',
+						'name'=>'email',
+						'label'=>'Email Address',
+						'type'=>'text',
+						'format'=>'email',
+						'req'=>1,
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'name',
+						'name'=>'name',
+						'label'=>'Name',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef'
+					)
+				);
+				if(count($t->response) > 0){
+					foreach ($t->response as $v) {
+						array_push($l, array(
+							'id' => preg_replace("/[^A-Za-z0-9 ]/", '', $v->Key),
+							'name' => $v->FieldName,
+							'label' => $v->FieldName,
+							'type' => $this->typesel('cm',strtolower($v->DataType)),
+							'typesel' => $this->typesel('cm',strtolower($v->DataType)),
+							'extras' => $this->extsel('cm',$v->FieldOptions),
+							'icon'=>'idef',
+							'format'=>'text',
+							'nof'=>1
+						));
+					}
+				}
+				echo json_encode($l);
+				break;
 			default:
 				break;
 		}
@@ -681,6 +745,21 @@ class Newsletter_Wrapper {
                         break;
                 }
                 break;
+			case 'cm':
+				switch ($t) {
+					case 'number':
+					case 'date':return 'text';
+						break;
+					case 'multiselectone':return 'single_select';
+						break;
+					case 'multiselectmany':return 'multi_select';
+						break;
+					case 'text':return 'text_box';
+						break;
+					default:
+						break;
+				}
+				break;
             default:
                 break;
         }
@@ -707,6 +786,12 @@ class Newsletter_Wrapper {
                         array_push($a, array('name' => $v->name));
                     }
                 break;
+			case 'cm':
+			case 'gr':
+					foreach ($t as $k => $v) {
+						array_push($a, array('name' => $v ));
+					}
+				break;
             default:
                 break;
         }
@@ -854,6 +939,34 @@ class Newsletter_Wrapper {
 					return '0';//error
 				return '1';//subscribed
 				break;
+			case 'cm':
+				$c = $this->verify($form,$data);
+				if($c)
+					return '2';
+				$this->wrap = new CS_REST_Subscribers($form['list']['id'],$this->auth);
+				$user = array(
+					'EmailAddress' => $data['email'],
+					'CustomFields' => array(),
+					'Resubscribe' => true
+				);
+				unset($data['email']);
+				if(isset($data['name'])){
+					$user['Name'] = $data['name'];
+					unset($data['name']);
+				}
+				foreach ($data as $key => $value) {
+					$a = array(
+						'Key' => $key,
+						'Value' => $value
+					);
+					array_push($user['CustomFields'], $a);
+				}
+				$e = $this->wrap->add($user);
+				if($e->was_successful())
+					return '1';//subscribed
+				else
+					return '0';//error
+				break;
 			default:
 				break;
 		}
@@ -908,6 +1021,19 @@ class Newsletter_Wrapper {
 							return 1;
 				return 0;
 				break;
+			case 'cm':
+				$this->wrap = new CS_REST_Subscribers($form['list']['id'],$this->auth);
+				$user = $data['email'];
+				$e = $this->wrap->get($user);
+				if($e->was_successful()){
+					if(isset($e->response->State) && $e->response->State == 'Active')
+						return 1;
+					else
+						return 0;//error
+				}
+				else
+					return 0;//error
+				break;
 			default:
 				break;
 		}
@@ -915,7 +1041,4 @@ class Newsletter_Wrapper {
 	}
 
 }
-
-
-
 ?>
