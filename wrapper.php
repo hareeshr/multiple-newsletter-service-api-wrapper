@@ -84,6 +84,10 @@ class Newsletter_Wrapper {
                 require_once('vr/VerticalResponse.class.php');
 				$this->wrap = new VerticalResponse($key[0],$key[1],$key[2]);
 				break;
+			case 'zc':
+                require_once('zc/Zoho.class.php');
+				$this->wrap = new ZohoCampaigns($key[0]);
+				break;
 
             default:
             # code...
@@ -143,6 +147,9 @@ class Newsletter_Wrapper {
 						break;
 					case 'vr':
 						echo json_encode($this->wrap->getAccessToken());
+						break;
+					case 'zc':
+						echo json_encode($this->wrap->account());
 						break;
 					default:
 						break;
@@ -327,6 +334,19 @@ class Newsletter_Wrapper {
 						array_push($l, array(
 							'id' => $v['attributes']['id'],
 							'name' => $v['attributes']['name']
+						));
+					}
+				}
+				echo json_encode($l);
+				break;
+			case 'zc':
+				$t = $this->wrap->getLists()['data']['list_of_details'];
+				$l = array();
+				if(!empty($t)){
+					foreach ($t as $v) {
+						array_push($l, array(
+							'id' => $v['listkey'],
+							'name' => $v['listname']
 						));
 					}
 				}
@@ -1408,6 +1428,50 @@ class Newsletter_Wrapper {
 				}
 				echo json_encode($l);
 				break;
+			case 'zc':
+				$t = (array) $this->wrap->getFields()['data']['response']['fieldnames']['fieldname'];
+				$l = array(
+					array(
+						'id'=>'email',
+						'name'=>'email',
+						'label'=>'Email Address',
+						'type'=>'text',
+						'format'=>'email',
+						'req'=>1,
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'fname',
+						'name'=>'First Name',
+						'label'=>'First Name',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef'
+					),
+					array(
+						'id'=>'lname',
+						'name'=>'Last name',
+						'label'=>'Last Name',
+						'type'=>'text',
+						'format'=>'text',
+						'icon'=>'idef'
+					)
+				);
+				if(!empty($t)){
+					foreach ($t as $v) {
+						if(in_array($v['FIELD_NAME'], array('Contact Email','First Name','Last Name')))continue;
+						array_push($l, array(
+							'id' => $v['DISPLAY_NAME'],
+							'name' => $v['DISPLAY_NAME'],
+							'label' => $v['DISPLAY_NAME'],
+							'type'=> $this->typesel('zc',strtolower($v['UITYPE'])),
+							'format'=> $this->formatsel('zc',$v['UITYPE']),
+							'icon'=>'idef'
+						));
+					}
+				}
+				echo json_encode($l);
+				break;
 			default:
 				break;
 		}
@@ -1463,6 +1527,27 @@ class Newsletter_Wrapper {
 					default:return 'text';
 						break;
 				}
+                break;
+			case 'zc':
+				switch ($t) {
+					case 'email':
+					case 'integer':
+					case 'phone':
+					case 'date':
+					case 'datetime':
+					case 'percent':
+					case 'decimal':
+					case 'longinteger':
+					case 'url':return 'text';
+						break;
+					case 'picklist':return 'select';
+						break;
+					case 'radiobutton':return 'radio';
+						break;
+					default:return $t;
+						break;
+				}
+				break;
             default:
                 break;
         }
@@ -1502,6 +1587,20 @@ class Newsletter_Wrapper {
 					case 'DATE':return 'date';
 						break;
 					default:return 'text';
+						break;
+				}
+				break;
+			case 'zc':
+				switch ($t) {
+					case 'integer':
+					case 'longinteger':
+					case 'percent':
+					case 'decimal':
+					case 'phone':return 'number';
+						break;
+					case 'datetime':return 'date';
+						break;
+					default:return $t;
 						break;
 				}
 				break;
@@ -1869,6 +1968,31 @@ class Newsletter_Wrapper {
 				else
 					return '0';//error
 				break;
+			case 'zc':
+				$user = $data;
+				if(isset($user['lname'])){
+					$user['Last Name'] = $user['lname'];
+					unset($user['lname']);
+				}
+				if(isset($user['email'])){
+					$user['Contact Email'] = $user['email'];
+					unset($user['email']);
+				}
+				if(isset($user['fname'])){
+					$user['First Name'] = $user['fname'];
+					unset($user['fname']);
+				}
+				$user = array(
+					'contactinfo' => json_encode($user),
+					'listkey' => $form['list']['id']
+				);
+				$e = $this->wrap->addContact($user);
+				if($e['data']['code'] != 0)
+					return '0';//error
+				if($e['data']['message'] == "User successfully subscribed.")
+					return '1';//subscribed
+				return '2';//already
+				break;
 			default:
 				break;
 		}
@@ -2002,6 +2126,16 @@ class Newsletter_Wrapper {
 				$e = $this->wrap->getContact($user);
 				if(count($e->data['items']) && $e->data['items'][0]['attributes']['status'] == 'mailable')
 					return 1;
+				return 0;
+				break;
+			case 'zc':
+				$user = array(
+					'contactemail'=> $data['email']
+					);
+				$e = $this->wrap->getContact($user);
+				if($e['http_status']==200)
+					if($e['data']['response']['code'][0] == 200)
+						return 1;
 				return 0;
 				break;
 			default:
